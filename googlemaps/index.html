@@ -35,6 +35,8 @@
             var infowindow = new google.maps.InfoWindow();
             var reverseGeocodeUrl = 'http://maps.googleapis.com/maps/api/geocode/json?sensor=false&latlng='
             var geocoder = new google.maps.Geocoder();
+            var directionsService = new google.maps.DirectionsService();
+            var directionsDisplay = null;
 
             var logger = function(message) {
                 document.getElementById('logger').innerText = message;
@@ -47,11 +49,27 @@
                 });
                 google.maps.event.addListener(marker, 'click', function() {
                     map.setZoom(defaultZoom);
-                    map.panTo(marker.getPosition());
+                    map.panTo(position);
                     showAddress(marker);
                 });
                 map.panTo(position);
                 markers.push(marker);
+                var index = markers.length-1;
+                // TODO: Treat intermediate points as waypoints, markers[0] = origin, marker = destination
+                if(1 < markers.length) {
+                    var request = {
+                        origin: markers[index-1].getPosition()
+                        , destination: position
+                        , provideRouteAlternatives: false
+                        , travelMode: google.maps.TravelMode.DRIVING
+                        , unitSystem: google.maps.UnitSystem.METRIC
+                    };
+                    directionsService.route(request, function(result,status) {
+                        if(google.maps.DirectionsStatus.OK == status) {
+                            directionsDisplay.setDirections(result);
+                        }
+                    });
+                }
             }
 
             // uses reverse-geocoding
@@ -156,6 +174,10 @@
                 ];
 
                 map = new google.maps.Map(map_canvas, mapOptions);
+
+                directionsDisplay = new google.maps.DirectionsRenderer();
+                directionsDisplay.setMap(map);
+                directionsDisplay.setOptions({ preserveViewport: true });
 
                 var homeControlDiv = document.createElement('div');
                 var homeControl = new HomeControl(homeControlDiv);
