@@ -55,11 +55,17 @@
                 map.panTo(position);
                 markers.push(marker);
                 var index = markers.length-1;
-                // TODO: Treat intermediate points as waypoints, markers[0] = origin, marker = destination
                 if(1 < markers.length) {
+                    var waypoints = [];
+                    if(2 < markers.length) {
+                        for (i=1;i<markers.length-1;i++) {
+                            waypoints.push({location: markers[i].getPosition()});
+                        }
+                    }
                     var request = {
-                        origin: markers[index-1].getPosition()
+                        origin: markers[0].getPosition()
                         , destination: position
+                        , waypoints: waypoints
                         , provideRouteAlternatives: false
                         , travelMode: google.maps.TravelMode.DRIVING
                         , unitSystem: google.maps.UnitSystem.METRIC
@@ -166,7 +172,7 @@
                 ,{
                     featureType: 'road'
                     ,stylers: [
-                    { hue: '#ff0023' }
+                    { hue: '#7400AB' }
                     ,{ saturation: 40 }
                     ,{ visibility: 'on' }
                     ]
