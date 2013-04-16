@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+       <title>OpenStreetMap, Leafletbased Workshop</title>
+        <style>
+            #map {
+                height: 400px;
+                width: 800px;
+            }
+            h1,p,span {
+               font-family: 'Noto Sans', sans-serif;
+               font-weight: normal;
+               color: #444;
+           }
+        </style>
+        <link href='http://fonts.googleapis.com/css?family=Noto+Sans' rel='stylesheet' type='text/css'>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.css" />
+        <!--[if lte IE 8]>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.ie.css" />
+        <![endif]-->
+        <script src="http://cdn.leafletjs.com/leaflet-0.5/leaflet.js"></script>
+        <script>
+            var map = null;
+            var origin = [47, -2];
+            var attribution = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ';
+            attribution += '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ';
+            attribution += 'Imagery © <a href="http://cloudmade.com">CloudMade</a>';
+            markers = [];
+            var apiKey = '4c84f836ade24ee5af7c98fcf67b0f2b';
+
+            var onMapClick = function (e) {
+                placeMarker(e.latlng);
+            }
+
+            var placeMarker = function (location){
+                var marker = L.marker(location).addTo(map);
+                marker.bindPopup("<span>" + location + "</span>");
+                markers.push(marker);
+                if (1 < markers.length) {
+                    fromMarker = markers[markers.length-2];
+                    toMarker = marker;
+                    drawRoute(fromMarker, toMarker);
+                }
+            }
+
+            function addScript(url) {
+                var script = document.createElement('script');
+                script.type="text/javascript";
+                script.src=url;
+                document.getElementsByTagName('head') [0].appendChild(script);
+            }
+
+            var drawRoute = function (fromMarker,toMarker) {
+                addScript('http://routes.cloudmade.com/' + apiKey + '/api/0.3/' + fromMarker.getLatLng().lat + ',' + fromMarker.getLatLng().lng + ',' + toMarker.getLatLng().lat + ',' + toMarker.getLatLng().lng + '/car.js?callback=getRoute');
+
+            }
+
+            var getRoute = function (response) {
+                var point, route, points = [];
+                for (var i=0; i<response.route_geometry.length; i++)
+                {
+                    point = new L.LatLng(response.route_geometry[i][0] , response.route_geometry[i][1]);
+                    points.push(point);
+                }
+                route = new L.Polyline(points, {
+                    weight: 3,
+                    opacity: 0.5,
+                    smoothFactor: 1
+                }).addTo(map);
+                route.bringToFront();
+            }
+
+            var initialize = function () {
+                map = L.map('map').setView(origin, 8);
+                map.on('click', onMapClick);
+                var basemap = L.tileLayer('http://{s}.tile.cloudmade.com/' + apiKey + '/1/256/{z}/{x}/{y}.png',
+                {
+                    maxZoom:19
+                }).addTo(map);
+
+                L.tileLayer('http://{s}.tile.cloudmade.com/' + apiKey + '/997/256/{z}/{x}/{y}.png', {
+                    attribution: attribution,
+                    maxZoom: 18
+                }).addTo(map);
+            }
+            window.onload = initialize;
+        </script>
+    </head>
+    <body>
+        <h1>Click to add new markers and trace a route</h1>
+        <div id="map"></div>
+        <p id="logger"></p>
+    </body>
+</html>
+
