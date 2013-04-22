@@ -24,7 +24,7 @@
     </head>
     <body>
 
-        <h1>Live earthquakes around Western France</h1>
+        <h1>Live earthquakes around Nantes, France</h1>
         <p id="legend"></p>
         <div id="map"></div>
     </body>
@@ -32,12 +32,13 @@
     <script>
         "use strict";
         var map, basemap = null;
-        var defaultZoom = 4;
+        var defaultZoom = 7;
         var origin = [47, -2];
         var markers = [];
         var attribution = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ';
         attribution += '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ';
-        attribution += 'Imagery © <a href="http://cloudmade.com">CloudMade</a>';
+        attribution += 'Imagery © <a href="http://cloudmade.com">CloudMade</a> - ';
+        attribution += 'Earthquakes RSS feed from © <a href="http://emsc-csem.org">emcs-csem.org</a>';
         var apiKey = '4c84f836ade24ee5af7c98fcf67b0f2b';
 
         var placeMarker = function (location, text){
