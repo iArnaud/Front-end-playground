@@ -3,12 +3,60 @@
     <head>
         <meta charset="utf-8" />
         <title>Mustache.js show-off</title>
+        <style>
+            #map {
+                height: 400px;
+                width: 800px;
+            }
+            h1,p,span {
+               font-family: 'Noto Sans', sans-serif;
+               font-weight: normal;
+               color: #444;
+           }
+        </style>
+        <link href='http://fonts.googleapis.com/css?family=Noto+Sans' rel='stylesheet' type='text/css'>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.css" />
+        <!--[if lte IE 8]>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.ie.css" />
+        <![endif]-->
+        <script src="http://cdn.leafletjs.com/leaflet-0.5/leaflet.js"></script>
+
     </head>
     <body>
 
+        <h1>Live earthquakes around Western France</h1>
+        <p id="legend"></p>
+        <div id="map"></div>
     </body>
     <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
     <script>
+        "use strict";
+        var map, basemap = null;
+        var defaultZoom = 4;
+        var origin = [47, -2];
+        var markers = [];
+        var attribution = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ';
+        attribution += '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ';
+        attribution += 'Imagery © <a href="http://cloudmade.com">CloudMade</a>';
+        var apiKey = '4c84f836ade24ee5af7c98fcf67b0f2b';
+
+        var placeMarker = function (location, text){
+            var marker = L.marker(location).addTo(map);
+            marker.bindPopup("<span>" + text + "</span>");
+            markers.push(marker);
+        }
+
+        var initialize = function () {
+            map = L.map('map').setView(origin, defaultZoom);
+            basemap = L.tileLayer('http://{s}.tile.cloudmade.com/' + apiKey + '/1/256/{z}/{x}/{y}.png',
+            {
+                maxZoom:19
+            }).addTo(map);
+            L.tileLayer('http://{s}.tile.cloudmade.com/' + apiKey + '/997/256/{z}/{x}/{y}.png', {
+                attribution: attribution,
+                maxZoom: 18
+            }).addTo(map);
+        }
 
         $.fn.filterNode = function(name) {
             return this.find('*').filter(function() {
@@ -16,38 +64,80 @@
             });
         };
 
-        // example: 'http://www.emsc-csem.org/service/rss/rss.php?typ=emsc&min_lat=10&min_long=-30&max_long=65';
-        // (EMSC - Last 50 earthquakes in euro mediteranean region)
+
+        function xmlToJson(xml) {
+
+            // Create the return object
+            var obj = {};
+
+            // text node
+            if (4 === xml.nodeType) {
+                obj = xml.nodeValue;
+            }
+
+            if (xml.hasChildNodes()) {
+                for (var i = 0; i < xml.childNodes.length; i++) {
+                    var TEXT_NODE_TYPE_NAME = '#text',
+                    item = xml.childNodes.item(i),
+                    nodeName = item.nodeName,
+                    content;
+
+                    if (TEXT_NODE_TYPE_NAME === nodeName) {
+                        //single textNode or next sibling has a different name
+                        if ((null === xml.nextSibling) || (xml.localName !== xml.nextSibling.localName)) {
+                            content = xml.textContent;
+
+                            //we have a sibling with the same name
+                            } else if (xml.localName === xml.nextSibling.localName) {
+                            //if it is the first node of its parents childNodes, send it back as an array
+                            content = (xml.parentElement.childNodes[0] === xml) ? [xml.textContent] : xml.textContent;
+                        }
+                        return content;
+                        } else {
+                        if ('undefined' === typeof(obj[nodeName])) {
+                            obj[nodeName] = xmlToJson(item);
+                            } else {
+                            if ('undefined' === typeof(obj[nodeName].length)) {
+                                var old = obj[nodeName];
+                                obj[nodeName] = [];
+                                obj[nodeName].push(old);
+                            }
+
+                            obj[nodeName].push(xmlToJson(item));
+                        }
+                    }
+                }
+            }
+            return obj;
+        }
+
         function handleRSS(url) {
-            var obj = null;
+            $('#legend').html('<a href="'+url+'">'+url+'</a>');
             $.ajax({
                 type: "GET",
-                url: url
-                }).done(function(xml) {
+                url: url,
+                dataType: 'xml'
+            }).done(function(xml) {
+                var content;
+                var i=0;
 
-                var lats = [];
-                var longs = [];
-                var latlongs = [];
-                // See http://goo.gl/jePWH
-                $(xml).filterNode('geo:lat').each(function() {
-                    lats.push($(this).text());
+                $(xml).filterNode('item').each(function() {
+                    var item = xmlToJson(this);
+                    content = "<br>" + item.title;
+                    content += "<br>" + item['emsc:time'];
+                    content += "<br>" + item['emsc:magnitude'];
+                    content += "<br>" + item['geo:lat'] + ";" + item['geo:long'];
+                    content += "<br><a href='" + item.link + "'>link</a>";
+                    placeMarker(new L.LatLng(item['geo:lat'], item['geo:long']), content);
                 });
-                $(xml).filterNode('geo:long').each(function() {
-                    longs.push($(this).text());
-                });
-                for(i=0;i<lats.length;i++){
-                    latlongs.push([lats[i], longs[i]]);
-                }
-                console.log(latlongs);
             });
         }
 
         $(document).ready(function() {
-            // EMSC - Last 50 earthquakes in euro mediteranean region
-            var url = 'http://www.emsc-csem.org/service/rss/rss.php?typ=emsc&min_lat=10&min_long=-30&max_long=65';
-            //url = 'http://edn1.esri.com/demos/jqueryrss/sample.rss';
+            // EMSC - Last 50 earthquakes 200km around Nantes, France
+            var url = 'http://www.emsc-csem.org/service/rss/rss.php?typ=emsc&min_lat=43.95411967351&min_long=-5.965270057344&max_lat=50.291525105654&max_long=3.4187817544348';
+            initialize();
             handleRSS(url);
-
         });
     </script>
 </html>
