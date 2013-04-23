@@ -34,11 +34,12 @@
         var map, basemap = null;
         var defaultZoom = 7;
         var origin = [47, -2];
+        var shakes = [];
         var markers = [];
         var attribution = 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ';
         attribution += '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ';
         attribution += 'Imagery © <a href="http://cloudmade.com">CloudMade</a> - ';
-        attribution += 'Earthquakes RSS feed from © <a href="http://emsc-csem.org">emcs-csem.org</a>';
+        attribution += 'Earthquakes RSS feed from © <a href="http://emsc-csem.org">emsc-csem.org</a>';
         var apiKey = '4c84f836ade24ee5af7c98fcf67b0f2b';
 
         var placeMarker = function (location, text){
@@ -112,8 +113,50 @@
             return obj;
         }
 
+        Array.prototype.Richters = {};
+        Array.prototype.Richters.min = 0;
+        Array.prototype.Richters.max = 12;
+        Array.prototype.Richters.step = 1;
+        Array.prototype.Richters.levels = [];
+        Array.prototype.Richters.knownLevels = {};
+
+        Array.prototype.Richters.years = [];
+        Array.prototype.knownYears = {};
+
+        Array.prototype.statsLegend = "";
+
+        Array.prototype.Register = function(shake) {
+            var i = 0;
+            var magnitude = 0;
+            for(i=this.Richters.min;i<this.Richters.max;i+=this.Richters.step) {
+               this.Richters.levels[i] = this.Richters.levels[i] || [];
+
+               magnitude = parseFloat(shake['emsc:magnitude'].replace('ML ',''));
+               if((i <= magnitude) && (magnitude < parseFloat(i+this.Richters.step))) {
+                   this.Richters.levels[i].push(shake);
+               }
+
+            }
+            shakes.push(shake);
+        }
+
+        Array.prototype.GenerateShakesStats = function() {
+            var i=0;
+            var shakesList = [];
+            for(i=shakes.Richters.min;i<shakes.Richters.max;i+=shakes.Richters.step) {
+                if(0 < shakes.Richters.levels[i].length) {
+                    shakes.Richters.knownLevels[""+i] = shakes.Richters.levels[i];
+                }
+            }
+            i=0;
+            for(var prop in shakes.Richters.knownLevels){
+                shakesList.push(shakes.Richters.knownLevels[prop].length + " shakes with magnitude " + (i+1));
+                i++;
+            }
+            shakes.statsLegend = shakesList.join(' ; ') + '.';
+        }
+
         function handleRSS(url) {
-            $('#legend').html('<a href="'+url+'">'+url+'</a>');
             $.ajax({
                 type: "GET",
                 url: url,
@@ -121,16 +164,25 @@
             }).done(function(xml) {
                 var content;
                 var i=0;
-
                 $(xml).filterNode('item').each(function() {
-                    var item = xmlToJson(this);
-                    content = "<br>" + item.title;
-                    content += "<br>" + item['emsc:time'];
-                    content += "<br>" + item['emsc:magnitude'];
-                    content += "<br>" + item['geo:lat'] + ";" + item['geo:long'];
-                    content += "<br><a href='" + item.link + "'>link</a>";
-                    placeMarker(new L.LatLng(item['geo:lat'], item['geo:long']), content);
+                    var shake = xmlToJson(this);
+                    shakes.Register(shake);
+                    content = "<br>" + shake.title;
+                    content += "<br>" + shake['emsc:time'];
+                    content += "<br>" + shake['emsc:magnitude'];
+                    content += "<br>" + shake['emsc:depth'];
+                    content += "<br>" + shake['geo:lat'] + ";" + shake['geo:long'];
+                    content += "<br><a href='" + shake.link + "'>link</a>";
+                    placeMarker(new L.LatLng(shake['geo:lat'], shake['geo:long']), content);
                 });
+                var legend = '<a href="'+url+'">Earthquakes feed source</a>';
+                legend += ' - ' + shakes.length + ' earthquakes';
+                if(shakes.length > 0) {
+                    legend += ' from ' + shakes[shakes.length-1]['emsc:time'] + ' to ' + shakes[0]['emsc:time'];
+                }
+                shakes.GenerateShakesStats();
+                legend += ":<br />" + shakes.statsLegend;
+                $('#legend').html(legend);
             });
         }
 
