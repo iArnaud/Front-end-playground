@@ -113,48 +113,79 @@
             return obj;
         }
 
-        Array.prototype.Richters = {};
-        Array.prototype.Richters.min = 0;
-        Array.prototype.Richters.max = 12;
-        Array.prototype.Richters.step = 1;
-        Array.prototype.Richters.levels = [];
-        Array.prototype.Richters.knownLevels = {};
+        var Stats = function() {};
+        Stats.prototype = {
+            Richters_min : 0,
+            Richters_max : 12,
+            Richters_step : 1,
+            Richters_levels : [],
+            Richters_knownLevels : {},
 
-        Array.prototype.Richters.years = [];
-        Array.prototype.knownYears = {};
+            Richters_depths : [],
+            Richters_knownDepths : {},
 
-        Array.prototype.statsLegend = "";
+            Richters_knownYears : [],
+            Richters_knownMonthes : [],
 
-        Array.prototype.Register = function(shake) {
-            var i = 0;
-            var magnitude = 0;
-            for(i=this.Richters.min;i<this.Richters.max;i+=this.Richters.step) {
-               this.Richters.levels[i] = this.Richters.levels[i] || [];
+            statsLegend : "",
 
-               magnitude = parseFloat(shake['emsc:magnitude'].replace('ML ',''));
-               if((i <= magnitude) && (magnitude < parseFloat(i+this.Richters.step))) {
-                   this.Richters.levels[i].push(shake);
-               }
+            Register : function(shake) {
+                var i = 0;
+                var magnitude = 0;
+                for(i=this.Richters_min;i<this.Richters_max;i+=this.Richters_step) {
+                    this.Richters_levels[i] = this.Richters_levels[i] || [];
 
-            }
-            shakes.push(shake);
-        }
+                    magnitude = parseFloat(shake['emsc:magnitude'].replace('ML ',''));
+                    if((i <= magnitude) && (magnitude < parseFloat(i+this.Richters_step))) {
+                        this.Richters_levels[i].push(shake);
+                    }
 
-        Array.prototype.GenerateShakesStats = function() {
-            var i=0;
-            var shakesList = [];
-            for(i=shakes.Richters.min;i<shakes.Richters.max;i+=shakes.Richters.step) {
-                if(0 < shakes.Richters.levels[i].length) {
-                    shakes.Richters.knownLevels[""+i] = shakes.Richters.levels[i];
                 }
+                shakes.push(shake);
+            },
+
+            GenerateShakesStats : function(currentMonth) {
+                var i=0;
+                var shakesLevels = [];
+                var shakesYears = [];
+                this.statsLegend = "";
+
+
+                if (6 === currentMonth.length) {
+                    currentMonth = currentMonth.substring(0,5) + "0" + currentMonth.substring(5,1);
+                }
+                currentMonth = currentMonth.substring(4,2) + '/' + currentMonth.substring(0,4);
+
+                // levels
+                for(i=this.Richters_min;i<this.Richters_max;i+=this.Richters_step) {
+                    if(0 < this.Richters_levels[i].length) {
+                        this.Richters_knownLevels[""+i] = this.Richters_levels[i];
+                    }
+                }
+                for(i=0;i<shakes.length;i++) {
+                    var year =  parseInt(shakes[i]['emsc:time'].substring(0,4));
+                    if(2000 < year) {
+                        this.Richters_knownYears[year+""] = this.Richters_knownYears[year+""] || 0;
+                        this.Richters_knownYears[year+""] += 1;
+                    }
+                    // TODO : add stats for current month
+                }
+                i=0;
+                for(var prop in this.Richters_knownLevels){
+                    shakesLevels.push(this.Richters_knownLevels[prop].length + " shakes with magnitude " + (i+1));
+                    i++;
+                }
+                this.statsLegend = shakesLevels.join(' ; ') + '.';
+
+
+                // years
+                for(var prop in this.Richters_knownYears) {
+                    shakesYears.push(this.Richters_knownYears[prop] + " shakes in " + prop );
+                }
+                this.statsLegend += '<br />' + shakesYears.join(' ; ');
+                this.statsLegend += ' in ' + currentMonth + '.';
             }
-            i=0;
-            for(var prop in shakes.Richters.knownLevels){
-                shakesList.push(shakes.Richters.knownLevels[prop].length + " shakes with magnitude " + (i+1));
-                i++;
-            }
-            shakes.statsLegend = shakesList.join(' ; ') + '.';
-        }
+        };
 
         function handleRSS(url) {
             $.ajax({
@@ -164,9 +195,12 @@
             }).done(function(xml) {
                 var content;
                 var i=0;
+                var date = new Date();
+                var currentMonth = date.getFullYear() + '_' + parseInt(date.getMonth()+1);
+                var stats= new Stats();
                 $(xml).filterNode('item').each(function() {
                     var shake = xmlToJson(this);
-                    shakes.Register(shake);
+                    stats.Register(shake);
                     content = "<br>" + shake.title;
                     content += "<br>" + shake['emsc:time'];
                     content += "<br>" + shake['emsc:magnitude'];
@@ -180,8 +214,8 @@
                 if(shakes.length > 0) {
                     legend += ' from ' + shakes[shakes.length-1]['emsc:time'] + ' to ' + shakes[0]['emsc:time'];
                 }
-                shakes.GenerateShakesStats();
-                legend += ":<br />" + shakes.statsLegend;
+                stats.GenerateShakesStats(currentMonth);
+                legend += ":<br />" + stats.statsLegend;
                 $('#legend').html(legend);
             });
         }
