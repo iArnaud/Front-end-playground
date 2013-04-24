@@ -14,12 +14,12 @@
                color: #444;
            }
         </style>
-        <link href='http://fonts.googleapis.com/css?family=Noto+Sans' rel='stylesheet' type='text/css'>
         <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.css" />
         <!--[if lte IE 8]>
         <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.ie.css" />
         <![endif]-->
         <script src="http://cdn.leafletjs.com/leaflet-0.5/leaflet.js"></script>
+        <!-- locally: <script src="../js/leaflet.js"></script>-->
 
     </head>
     <body>
@@ -28,7 +28,7 @@
         <p id="legend"></p>
         <div id="map"></div>
     </body>
-    <script src="http://code.jquery.com/jquery-1.9.1.min.js"></script>
+    <script src="../js/jquery-1.9.1.min.js"></script>
     <script>
         "use strict";
         var map, basemap = null;
@@ -42,11 +42,6 @@
         attribution += 'Earthquakes RSS feed from © <a href="http://emsc-csem.org">emsc-csem.org</a>';
         var apiKey = '4c84f836ade24ee5af7c98fcf67b0f2b';
 
-        var placeMarker = function (location, text){
-            var marker = L.marker(location).addTo(map);
-            marker.bindPopup("<span>" + text + "</span>");
-            markers.push(marker);
-        }
 
         var initialize = function () {
             map = L.map('map').setView(origin, defaultZoom);
@@ -113,6 +108,33 @@
             return obj;
         }
 
+        var Shake = function (args) {
+            this.geo = args.json;
+
+            this.lat = parseFloat(this.geo['geo:lat']);
+            this.long = parseFloat(this.geo['geo:long']);
+            this.latLng = new L.LatLng(this.lat, this.long);
+            this.magnitude = this.magnitude || parseFloat(this.geo['emsc:magnitude'].replace('ML ',''));
+            this.depth = parseInt($.trim(this.geo['emsc:depth']));
+            this.time = this.geo['emsc:time'];
+            this.year =  parseInt(this.time.substring(0,4));
+            this.month = parseInt(this.time.substring(5,7));
+            this.yearMonth = this.time.substring(0,7);
+            this.popUpContent = '<span>' + this.geo['title'];
+            this.popUpContent += '<br>' + this.time;
+            this.popUpContent += "<br>" + this.magnitude;
+            this.popUpContent += "<br>" + this.depth;
+            this.popUpContent += "<br>" + this.lat + ";" + this.long;
+            this.popUpContent += "<br><a href='" + this.link + "'>link</a>";
+            this.popUpContent += '</span>';
+            shakes.push(this);
+            this.placeMarker = function (){
+                var marker = L.marker(this.latLng).addTo(map);
+                marker.bindPopup(this.popUpContent);
+                markers.push(marker);
+            }
+        };
+
         var Stats = function() {};
         Stats.prototype = {
             Richters_min : 0,
@@ -131,17 +153,12 @@
 
             Register : function(shake) {
                 var i = 0;
-                var magnitude = 0;
                 for(i=this.Richters_min;i<this.Richters_max;i+=this.Richters_step) {
                     this.Richters_levels[i] = this.Richters_levels[i] || [];
-
-                    magnitude = parseFloat(shake['emsc:magnitude'].replace('ML ',''));
-                    if((i <= magnitude) && (magnitude < parseFloat(i+this.Richters_step))) {
+                    if((i <= shake.magnitude) && (shake.magnitude < parseFloat(i+this.Richters_step))) {
                         this.Richters_levels[i].push(shake);
                     }
-
                 }
-                shakes.push(shake);
             },
 
             GenerateShakesStats : function(currentMonth) {
@@ -158,15 +175,14 @@
 
                 // levels
                 for(i=this.Richters_min;i<this.Richters_max;i+=this.Richters_step) {
-                    if(0 < this.Richters_levels[i].length) {
+                    if(this.Richters_levels[i] && 0 < this.Richters_levels[i].length) {
                         this.Richters_knownLevels[""+i] = this.Richters_levels[i];
                     }
                 }
                 for(i=0;i<shakes.length;i++) {
-                    var year =  parseInt(shakes[i]['emsc:time'].substring(0,4));
-                    if(2000 < year) {
-                        this.Richters_knownYears[year+""] = this.Richters_knownYears[year+""] || 0;
-                        this.Richters_knownYears[year+""] += 1;
+                    if(2000 < shakes[i].year) {
+                        this.Richters_knownYears[shakes[i].year+""] = this.Richters_knownYears[shakes[i].year+""] || 0;
+                        this.Richters_knownYears[shakes[i].year+""] += 1;
                     }
                     // TODO : add stats for current month
                 }
@@ -183,7 +199,7 @@
                     shakesYears.push(this.Richters_knownYears[prop] + " shakes in " + prop );
                 }
                 this.statsLegend += '<br />' + shakesYears.join(' ; ');
-                this.statsLegend += ' in ' + currentMonth + '.';
+                //this.statsLegend += ' in ' + currentMonth + '.';
             }
         };
 
@@ -193,21 +209,14 @@
                 url: url,
                 dataType: 'xml'
             }).done(function(xml) {
-                var content;
                 var i=0;
                 var date = new Date();
                 var currentMonth = date.getFullYear() + '_' + parseInt(date.getMonth()+1);
                 var stats= new Stats();
                 $(xml).filterNode('item').each(function() {
-                    var shake = xmlToJson(this);
+                    var shake = new Shake({json: xmlToJson(this)});
+                    shake.placeMarker();
                     stats.Register(shake);
-                    content = "<br>" + shake.title;
-                    content += "<br>" + shake['emsc:time'];
-                    content += "<br>" + shake['emsc:magnitude'];
-                    content += "<br>" + shake['emsc:depth'];
-                    content += "<br>" + shake['geo:lat'] + ";" + shake['geo:long'];
-                    content += "<br><a href='" + shake.link + "'>link</a>";
-                    placeMarker(new L.LatLng(shake['geo:lat'], shake['geo:long']), content);
                 });
                 var legend = '<a href="'+url+'">Earthquakes feed source</a>';
                 legend += ' - ' + shakes.length + ' earthquakes';
@@ -223,6 +232,7 @@
         $(document).ready(function() {
             // EMSC - Last 50 earthquakes 200km around Nantes, France
             var url = 'http://www.emsc-csem.org/service/rss/rss.php?typ=emsc&min_lat=43.95411967351&min_long=-5.965270057344&max_lat=50.291525105654&max_long=3.4187817544348';
+            url = '../rss.xml';
             initialize();
             handleRSS(url);
         });
