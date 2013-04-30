@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Mustache.js show-off</title>
+        <style>
+            #map {
+                height: 400px;
+                width: 800px;
+            }
+            h1,p,span {
+               font-family: 'Noto Sans', sans-serif;
+               font-weight: normal;
+               color: #444;
+           }
+        </style>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.css" />
+        <!--[if lte IE 8]>
+        <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.ie.css" />
+        <![endif]-->
+        <script src="http://cdn.leafletjs.com/leaflet-0.5/leaflet.js"></script>
+        <!-- locally: <script src="../js/leaflet.js"></script>-->
+
+    </head>
+    <body>
+
+        <h1>Live earthquakes around Nantes, France</h1>
+        <p id="legend"></p>
+        <div id="map"></div>
+    </body>
+    <script src="../js/jquery-1.9.1.min.js"></script>
+    <script src="main.js"></script>
+</html>
+
