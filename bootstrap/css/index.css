@@ -1,0 +1,39 @@
+h2 {
+font-size: 22px;
+font-family: 'Telex', sans-serif;
+padding: 0 0 0 30px;
+margin: 0 auto;
+}
+
+#container {
+    width: 100%;
+    min-height: 600px;
+    background-color:rgb(165,191,221);
+}
+
+#projects, #filters,
+#map img{
+    -moz-border-radius: 5px;
+    border-radius: 5px;
+}
+
+#projects, #filters {
+    background-color:white;
+    width: 200px;
+}
+
+
+#projects ul li,
+#filters ul li {
+    list-style-type: none;
+    margin: 0.2em 0 0.2em 0;
+}
+
+#projects ul li a,
+#filters ul li a{
+    display: block;
+    width: 120px;
+    height: 20px;
+}
+
+
